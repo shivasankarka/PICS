@@ -16,7 +16,7 @@ class blazar_DM_density():
         self.tBH = 10**9*365*24*3600
         self.RS = 2.97*10**-6  #pc
         self.ri = 4*self.RS
-        
+
     def rho_c(self, m_chi, sigma):
         return m_chi / (sigma * 10**-26 * self.tBH)  # GeV/cm^3
 
@@ -41,7 +41,7 @@ class blazar_DM_density():
         rmin = 0.00002958
         r_max = 10**4
         # changes r_max from 10**10 *RS to 10**4 since it converges
-        
+
         # x = np.logspace(np.log10(rmin), np.log10(10**4), 5000)
         # dx = np.diff(x)
         # dat = np.zeros((len(x)))
@@ -53,10 +53,13 @@ class blazar_DM_density():
         result = np.sum(dat)
         # result, _ = quad(lambda x: self.rho_chi(alpha, x, m_chi, sigma), rmin, r)
         return result
+
 """
 Plotting the DM density profile
-"""       
-# sigmacalc = blazar_DM_density()
+"""
+sigmacalc = blazar_DM_density()
+print(sigmacalc.Sigma(7/3, 10**3, 10**-6, 10**-8))
+
 # x = np.logspace(np.log10(0.00002958), 4, 5000)
 # rho_chi_values = np.zeros(len(x))
 # rho_chi_values1 = np.zeros(len(x))
@@ -80,7 +83,7 @@ Plotting the DM density profile
 # rho_chi_values3 = np.zeros(len(m))
 # for i in range(len(m)):
 #     rho_chi_values[i]  = sigmacalc.Sigma(7/3, m[i], 10**-6, 10**-8) *  3.086*(10**18)
-#     rho_chi_values1[i] = sigmacalc.Sigma(7/3, m[i], 10**-6, 3) *  3.086*(10**18) 
+#     rho_chi_values1[i] = sigmacalc.Sigma(7/3, m[i], 10**-6, 3) *  3.086*(10**18)
 #     rho_chi_values2[i]  = sigmacalc.Sigma(3/2, m[i], 10**-6, 10**-8) *  3.086*(10**18)
 #     rho_chi_values3[i]  = sigmacalc.Sigma(3/2, m[i], 10**-6, 3) *  3.086*(10**18)
 
@@ -91,7 +94,7 @@ Plotting the DM density profile
 # plt.rcParams['axes.linewidth'] = 2
 # fig = plt.figure(figsize=(8, 6))
 # ax1 = plt.subplot()
-# ax1.set_facecolor('white')      
+# ax1.set_facecolor('white')
 # plt.plot(m, rho_chi_values, color='r', label="CIA")
 # plt.plot(m, rho_chi_values1, color='r', label="CIIA", linestyle='dashed')
 # plt.plot(m, rho_chi_values2, color='b', label="CIB")
@@ -133,7 +136,7 @@ Plotting the DM density profile
 # rho_chi_values3 = np.zeros(len(m))
 # for i in range(len(m)):
 #     rho_chi_values[i]  = sigmacalc.Sigma(7/3, 10**3, m[i], 10**-8) *  3.086*(10**18)
-#     rho_chi_values1[i] = sigmacalc.Sigma(7/3, 10**3, m[i], 3) *  3.086*(10**18) 
+#     rho_chi_values1[i] = sigmacalc.Sigma(7/3, 10**3, m[i], 3) *  3.086*(10**18)
 #     rho_chi_values2[i]  = sigmacalc.Sigma(3/2,10**3, m[i],10**-8) *  3.086*(10**18)
 #     rho_chi_values3[i]  = sigmacalc.Sigma(3/2,10**3, m[i], 3) *  3.086*(10**18)
 
@@ -144,7 +147,7 @@ Plotting the DM density profile
 # plt.rcParams['axes.linewidth'] = 2
 # fig = plt.figure(figsize=(8, 6))
 # ax1 = plt.subplot()
-# ax1.set_facecolor('white')      
+# ax1.set_facecolor('white')
 # plt.plot(m, rho_chi_values/m, color='r', label="CIA")
 # plt.plot(m, rho_chi_values1/m, color='r', label="CIIA", linestyle='dashed')
 # plt.plot(m, rho_chi_values2/m, color='b', label="CIB")

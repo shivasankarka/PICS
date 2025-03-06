@@ -1,8 +1,7 @@
-# from pyfiglet import figlet_format
+###############################################################################
+# * Import libraries
+###############################################################################
 import time
-import math as mtp
-
-import csv
 import os
 import sys
 import warnings
@@ -10,31 +9,39 @@ import warnings
 import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
-from numpy import linalg as LA
+
 import numpy as np
+from numpy import linalg as LA
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tck
 import multiprocessing as mp
 
+from model import Model
 
-# text = figlet_format("PICSHEP", font="starwars")
-# print(text)
-print("**************************************************************************")
-print("Particle Interactions Cascade equation Solver for High Energy Physics")
-print()
-print("Author: シヴァサンカール ShivaSankar K.A")
-print()
-print("Affiliation: "+u"北海道大学宇宙理学専攻、大学院理学院, 北海道大学\n Department of CosmoSciences, Graduate School of Science, Hokkaido University")
-print()
-print("Email: shivasankar.ka@gmail.com")
-print()
-print("Last update: 2023/03/27")
-print("**************************************************************************")
-time.sleep(1)
+"""
+Update: 
+2023/03/27: Major update along with paper publication.
+2024/12/18: Modularizing the code.
+"""
 
+markdown_text = """
+**************************************************************************
+Particle Interactions Cascade equation Solver for High Energy Physics
 
-class CES():
+Author: ShivaSankar K.A
+        シヴァサンカール 
+        旭輝
+
+Affiliation: PhD, 北海道大学宇宙理学専攻、大学院理学院, 北海道大学
+Department of CosmoSciences, Graduate School of Science, Hokkaido University
+
+Email: shivasankar.ka@gmail.com
+*************************************************************************
+"""
+print(markdown_text)
+
+class CascadeEquationSolver():
     """
     Particle Interactions Cascade equation Solver for High Energy Physics.
 
@@ -57,17 +64,17 @@ class CES():
     def __init__(self):
         self.e_min = None
         self.e_max = None
-        self.N = None
-        self.N_eig = None
+        self.num = None
+        self.num_eig = None
 
-    def set_model(self, model) -> None:
+    def set_model(self, model: Model) -> None:
         """
         Set the model for calculations.
 
         Args:
             model (Model): The model used for calculations.
         """
-        self.model = model    
+        self.model = model
 
     def eigcalc(self, energy: float, num: int, a_mat: float, b_mat: float) -> np.ndarray:
         """
@@ -83,25 +90,48 @@ class CES():
             np.ndarray: The attenuated flux at the required energy E.
         """
         model = self.model
-        e = np.logspace(np.log10(model.e_min), np.log10(model.e_max), num, dtype=np.float64)
-        delta_e = np.diff(np.log(e)) 
-        
-        phi_0 = model.flux(e)
+        energy_arr = np.logspace(np.log10(self.e_min), np.log10(self.e_max), num, dtype=np.float64)
+        delta_e = np.diff(np.log(energy_arr))
 
-        sigma_array = model.xs(e, a_mat, b_mat, 9/b_mat)
-
-        dxs_array = np.triu(model.dxs(e[:, None], e, a_mat, b_mat, 9/b_mat))
+        phi_0 = model.flux(energy_arr)
+        sigma_array = model.xs(energy_arr, a_mat, b_mat, 9/b_mat)
+        dxs_array = np.triu(model.dxs(energy_arr[:, None], energy_arr, a_mat, b_mat, 9/b_mat))
         
-        rhn = np.zeros((len(e), len(e)))
-        i_upper, j_upper = np.triu_indices(len(e), 1)
-        rhn[i_upper, j_upper] = delta_e[j_upper - 1] * dxs_array[j_upper, i_upper] * e[j_upper]**1
+        rhn = np.zeros((len(energy_arr), len(energy_arr)))
+        i_upper, j_upper = np.triu_indices(len(energy_arr), 1)
+        rhn[i_upper, j_upper] = delta_e[j_upper - 1] * dxs_array[i_upper, j_upper] * energy_arr[j_upper]**1
 
         # calculating eigenvalues, eigenvectors and solving for the coefficients
         w, v = LA.eig(-np.diag(sigma_array) + rhn)
         ci = LA.solve(v, phi_0)
         phisol = np.dot(v, (ci * np.exp(w)))
-        return np.interp(energy, e, phisol)
-    
+        return np.interp(energy, energy_arr, phisol)
+
+    def attenuated_flux(self, energy: float, num: int, a_mat: float, b_mat: float) -> np.ndarray:
+        """
+        Calculate the attenuated flux at the required energy E.
+
+        Args:
+            Energy (float): The required energy.
+            num (int): The number of energy points.
+            a (float): Parameter a.
+            b (float): Parameter b.
+
+        Returns:
+            np.ndarray: The attenuated flux at the required energy E.
+        """
+        model = self.model
+        energy_arr = np.logspace(np.log10(self.e_min), np.log10(self.e_max), num, dtype=np.float64)
+        delta_e = np.diff(np.log(energy_arr))
+
+        phi_0 = model.flux(energy_arr)
+        sigma_array = model.xs(energy_arr, a_mat, b_mat, 9/b_mat)
+        first_term = energy_arr * phi_0 * sigma_array
+        
+        dxs_array = np.triu(model.dxs(energy_arr[:, None], energy_arr, a_mat, b_mat, 9/b_mat))
+
+        return np.interp(energy, energy_arr, phisol)
+
     def events(self, e_min: float, e_max: float, t_obs: float, a_range: list[float], b_range: list[float], n_val: int = 20, n_eig: int = 20) -> None:
         """
         Calculate the number of events for given energy range and observation time.
@@ -115,14 +145,14 @@ class CES():
             N (int, optional): The number of points in the range. Defaults to 20.
             N_eig (int, optional): The number of eigenvectors. Defaults to 20.
         """
-        self.N = n_val
-        self.N_eig = n_eig
+        self.num = n_val
+        self.num_eig = n_eig
         model = self.model
 
         self.e_min = e_min
         self.e_max = e_max
-        aval = np.logspace(a_range[0], a_range[1], num=self.N, endpoint=True) 
-        bval = np.logspace(b_range[0], b_range[1], num=self.N, endpoint=True)
+        aval = np.logspace(a_range[0], a_range[1], num=self.num, endpoint=True)
+        bval = np.logspace(b_range[0], b_range[1], num=self.num, endpoint=True)
 
         steps = 20000
         delta_e = (10**np.log10(self.e_max) - 10**np.log10(self.e_min)) / steps
@@ -132,12 +162,14 @@ class CES():
         if os.path.exists("events_data/events.txt"):
             os.remove("events_data/events.txt")
         print("\n")
-        
+
+        # s = self.eigcalc(enn, self.num_eig, aval[1], bval[1]) * model.eff_area(enn)
+
         with open('events_data/events.txt', mode='a', newline='', encoding='utf-8') as file:
-            for i in range(self.N):
-                for j in range(self.N):
+            for i in range(self.num):
+                for j in range(self.num):
                     tmp = 0.0
-                    tmp = t_obs * np.sum(self.eigcalc(enn, self.N_eig, aval[i], bval[j]) * model.eff_area(enn)) * delta_e
+                    tmp = t_obs * np.sum(self.eigcalc(enn, self.num_eig, aval[i], bval[j]) * model.eff_area(enn)) * delta_e
                     file.write(f"{aval[i]} {bval[j]} {tmp}\n")
         end_time = time.time()
         print("\nTime taken: ", end_time - start_time, " seconds\n")
@@ -191,7 +223,7 @@ class CES():
         ax = fig.add_subplot(111)
         ax.tick_params(which='major',direction='in',width=2,length=10,top=True,right=True, pad=7)
         ax.tick_params(which='minor',direction='in',width=1,length=7,top=True,right=True)
-            
+
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
 
@@ -221,7 +253,7 @@ class CES():
             # mvsg[i,0] = np.sqrt(dmmass/(y_coords[i]))
             # mvsg[i,1] = mvsg[i,0]**2 * np.sqrt(x_coords[i]/(SigmaChi * 10**3)) * np.sqrt(4*np.pi)
             mvsg[i, 0] = model.m_eqn(model.dm_mass, y_coords[i])
-            sigma_chi = model.get_sigma(3 * mvsg[i, 0])
+            sigma_chi  = model.get_sigma(3 * mvsg[i, 0])
             mvsg[i, 1] = model.g_eqn(mvsg[i, 0], x, sigma_chi)
         return mvsg, model.dm_model, model.dm_mass
 
@@ -245,7 +277,7 @@ class CES():
         xvals = df[xcol].unique()
         yvals = df[ycol].unique()
         zvals = df[zcol].values.reshape(len(xvals), len(yvals)).T
-        
+
         mpl.rcParams['text.latex.preamble'] = r'\usepackage{mathpazo}'
         plt.rcParams['axes.linewidth'] = 2
         plt.rc('text', usetex=True)
@@ -258,7 +290,7 @@ class CES():
         ax = fig.add_subplot(111)
         ax.tick_params(which='major',direction='in',width=2,length=10,top=True,right=True, pad=7)
         ax.tick_params(which='minor',direction='in',width=1,length=7,top=True,right=True)
-            
+
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
 
@@ -275,7 +307,7 @@ class CES():
 
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
-        
+
         if plot_save is True:
             if os.path.exists("plots/"+title+".pdf"):
                 os.remove("plots/"+title+".pdf")
@@ -287,7 +319,7 @@ class CES():
             plt.show(block=False)
         else:
             plt.show()
-            
+
     def plot_mvsg(self, title: str, plot_save: bool) -> None:
         """
         Plot the data with specified x and y limits, title, and plot options.
@@ -312,7 +344,7 @@ class CES():
         ax = fig.add_subplot(111)
         ax.tick_params(which='major',direction='in',width=2,length=10,top=True,right=True, pad=7)
         ax.tick_params(which='minor',direction='in',width=1,length=7,top=True,right=True)
-            
+
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
 
@@ -320,7 +352,7 @@ class CES():
         plt.yscale('log')
         # ax.set_xlim(xlim)
         # ax.set_ylim(ylim)
-        
+
         plt.plot(mvsg_dat[:,0], np.sqrt(mvsg_dat[:,1]))
 
         plt.ylabel(r"$g_{\nu}$",fontsize=22)
@@ -335,173 +367,6 @@ class CES():
             if os.path.exists("plots/mvsg_"+title+"_m_dm="+str(dmmass)+"-"+str(model)+".pdf"):
                 os.remove("plots/mvsg_"+title+"_m_dm="+str(dmmass)+"-"+str(model)+".pdf")
             plt.savefig("plots/mvsg_"+title+"_m_dm="+str(dmmass)+"-"+str(model)+".pdf")
-        
+
         print("Thy Bidding is done, My Master \n")
-        
-class Model():
-    """
-    This class is used to define the required parameters for the model.
-    """
-    def __init__(self, path="./"):
-        self.modelpath = path
-        self.dm_mass = 0.0
-        
-    def set_model_name(self, model_name: str, model_type: str) -> None:
-        """
-        Set the model name and type.
 
-        Args:
-            model_name (str): The name of the model.
-            model_type (str): The type of the model.
-        """
-        self.model_type = model_type
-        self.model_name = model_name
-        
-        if "Blazar" in self.model_name:
-            sys.path.append("../Models/Blazar_U1X")
-            from DM_density import blazar_DM_density
-            self.sigmacalc = blazar_DM_density()
-        elif "AGN" in self.model_name:
-            sys.path.append("../Models/AGN_U1X")
-            from DM_density import AGN_DM_density
-            self.sigmacalc = AGN_DM_density()
-        else:
-            warnings.warn("Invalid model name: {}".format(self.model_name))
-            
-    def set_energy_range(self, e_min: float, e_max: float) -> None:
-        """
-        Set the energy range.
-
-        Args:
-            e_min (float): The minimum energy.
-            e_max (float): The maximum energy.
-        """
-        self.e_min = e_min
-        self.e_max = e_max
-
-    def set_diff_cross_section(self, diff_cross_section: str) -> None:
-        """
-        Set the differential cross section function with user defined function.
-
-        Args:
-            diff_cross_section (str): The user defined function for the differential cross section.
-        """
-        self.diff_cross_section_eqn = diff_cross_section
-        self.dxs = eval(self.diff_cross_section_eqn)
-
-    def set_cross_section(self, cross_section: str) -> None:
-        """
-        Set the cross section function with user provided data.
-
-        Args:
-            cross_section (str): The user defined function for the cross section.
-        """
-        self.cross_section_eqn = cross_section
-        self.xs = eval(self.cross_section_eqn)
-
-    def set_eff_area_data(self, effective_area: str) -> None:
-        """
-        Set the effective interaction area function with user provided data.
-
-        Args:
-            effective_area (str): The file name of the effective area data.
-        """
-        if os.path.exists(self.modelpath + effective_area):
-            data = np.genfromtxt(self.modelpath + effective_area, delimiter=',')
-            self.eff_area_data = interp1d(data[:, 0], data[:, 1], kind='linear', fill_value='extrapolate')
-            self.eff_area = lambda E: self.eff_area_data(E)[()]
-        else:
-            warnings.warn("Effective area file not found: {}".format(self.modelpath + effective_area))
-    
-    def set_eff_area_func(self, effective_area: str) -> None:
-        """
-        Set the effective interaction area function with user defined function.
-
-        Args:
-            effective_area (str): The user defined function for the effective area.
-        """
-        self.eff_area_eqn = effective_area
-        self.eff_area = lambda E: eval(self.eff_area_eqn)
-        
-    def set_flux_data(self, flux: str) -> None:
-        """
-        Set the flux function with user provided data.
-
-        Args:
-            flux (str): The file name of the flux data.
-        """
-        if os.path.exists(self.modelpath + flux):
-            data = np.genfromtxt(self.modelpath + flux, delimiter=',')
-            self.flux_data = interp1d(data[:, 0], data[:, 1], kind='linear', fill_value="extrapolate")
-            self.flux = lambda E: self.flux_data(E)[()]
-        else:
-            warnings.warn("Flux file not found: {}".format(self.modelpath + "input/flux.csv"))
-    
-    def set_flux_func(self, flux: str) -> None:
-        """
-        Set the flux function with user defined function.
-
-        Args:
-            flux (str): The user defined function for the flux.
-        """
-        self.flux_eqn = flux
-        self.flux = lambda E: eval(self.flux_eqn)
-
-    def set_np_parameterization(self, m: str, g: str) -> None:
-        """
-        Set the new physics mass and coupling relation with user provided parameterizations.
-
-        Args:
-            m (str): The user defined function for the mass.
-            g (str): The user defined function for the coupling relation.
-        """
-        self.m_eqn = lambda dm_mass, B: eval(m)
-        self.g_eqn = lambda mzp, A, Sigma: eval(g)
-        print("Parameterization of new physics parameters initialized:\n m=" + m + "\n g=" + g + "\n")
-    
-    def set_dm_model_info(self, model_type: str, model_mass: float) -> None:
-        """
-        Set the dark matter model information.
-
-        Args:
-            model_type (str): The type of the model.
-            model_mass (float): The mass of the model.
-        """
-        self.dm_model = model_type
-        self.dm_mass = model_mass
-
-        # Blazar
-        # self.models = [["CIA",7.19725*10**25,1.0],["CIIA",5.78693*10**21,1.0],["CIB",7.48421*10**26,0.48],["CIIB",1.64899*10**24,0.73]]
-        # AGN
-        self.models = [["CIA",2.42932*10**28,1.0],["CIIA",3.62965*10**23,1.0],["CIB",9.51132*10**27,0.48],["CIIB",4.94941*10**23,0.73]]
-        [(A := self.models[i][1], B := self.models[i][2]) for i in range(len(self.models)) if self.dm_model == self.models[i][0]]
-        A = float(A)
-        B = float(B)
-        # self.SigmaChi = 10**A * (self.dm_mass)**(1-B) * (1.98* 10**-14)**2 * 10**-3
-        self.SigmaChi = A * (1.98* 10**-14)**2
-        
-    def get_sigma(self, m_chi: float) -> float:
-        """
-        Calculate the sigma value for a given dark matter mass.
-
-        Args:
-            m_chi (float): The dark matter mass.
-
-        Returns:
-            float: The calculated sigma value.
-        """
-        alpha = {
-            "CIA": 7/3,
-            "CIIA": 7/3,
-            "CIB": 3/2,
-            "CIIB": 3/2
-        }[self.model_type]
-        sigma_val = {
-            "CIA": 10**-8,
-            "CIIA": 3,
-            "CIB": 10**-8,
-            "CIIB": 3
-        }[self.model_type]
-
-        sigma_calc = self.sigmacalc.Sigma(alpha=alpha, r=10**3, m_chi=m_chi, sigma=sigma_val) 
-        return sigma_calc * 3.086*(10**18) * (1.98* 10**-14)**2  # conversion factors for pc to cm and GeV to cm

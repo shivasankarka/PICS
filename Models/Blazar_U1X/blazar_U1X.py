@@ -2,6 +2,7 @@ import sys
 src_path = "../../src/"
 sys.path.append(src_path)
 from PICSHEP import *
+
 CES = CES()
 model = Model(path="./")
 model.set_model_name(model_name="Blazar",model_type="CIB")
@@ -13,10 +14,9 @@ F3 = 4.119
 
 # charge = [4.0,2.0,1.0,0.0,-1.0]
 # modelz = ['Dirac','Majorana-II','Complex']
-modelz = ["Majorana-II"]
+modelz = ["Dirac"]
 # charge = [4.0,2.0,0.0]
 charge = [2.0]
-
 
 for mod in modelz:
     for xH in charge:
@@ -28,7 +28,7 @@ for mod in modelz:
                 #Fermionic cross section
                 model.set_diff_cross_section(diff_cross_section="lambda E,x,a,b,dm_mass: "+str(QX)+"* a*(1 + E**2/x**2)* 1/((1+2*b*(x-E))**2)")
                 model.set_cross_section(cross_section="lambda Ev,A,B,mchi: "+str(QX)+"*(2 * B * Ev**2 * ((4 * B * Ev * (2 * B * Ev + 1) + 1) / (4 * B * Ev**2 + 2 * Ev + mchi) + 1 / (2 * Ev + mchi)) - (2 * B * Ev + 1) * np.log(4 * B * Ev**2 + 2 * Ev + mchi) + (2 * B * Ev + 1) * np.log(2 * Ev + mchi))*A/(4 * B**3 * Ev**2)")
-        
+
         elif mod=='Majorana-I':
                 xchi = 1.0
                 xv = -1/2*(xH) - 1.0
@@ -63,26 +63,27 @@ for mod in modelz:
         model.set_np_parameterization(m="3/(B)",
                                       g="(mzp**2) * np.sqrt(A/(Sigma)) * np.sqrt(8*np.pi)"
                                       )
-        
+
         model.set_energy_range(e_min=290,e_max=10**4)
 
         model.set_dm_model_info(model_type="CIB", model_mass=10**-3)
 
         CES.set_model(model=model)
 
-        # A and B range for normal charge = [-7,3]  
+        # A and B range for normal charge = [-7,3]
         # for x_chi=100, Arange=[-12,-1], Brange=[-10,3]
-        # for Majorana case, Arange = [-4,4] for rest Arange = [-8.5,-1]
+        # for Majorana case, Arange = [-4,4] for rest Brange = [-3,-4]
+
         CES.events(e_min=290,
-                   e_max=10**4, 
-                   t_obs= 898*24*3600, 
-                   a_range=[-4,4], 
-                   b_range=[-3,4], 
+                   e_max=10**4,
+                   t_obs= 898*24*3600,
+                   a_range=[-9,-2],
+                   b_range=[-4,4],
                    n_val=50,
                    n_eig=30)
 
-        CES.plot(xlim=[10**-4,10**4],
-                 ylim=[10**-3,10**4],
+        CES.plot(xlim=[10**-9,10**-2],
+                 ylim=[10**-4,10**4],
                  title="AvsB_U(1)X_xH="+str(xH)+"_"+mod+"_xchi="+str(xchi),
                  do_plot = False,
                  plot_save= True,
