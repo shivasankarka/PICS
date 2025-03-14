@@ -121,15 +121,42 @@ class CascadeEquationSolver():
             np.ndarray: The attenuated flux at the required energy E.
         """
         model = self.model
-        energy_arr = np.logspace(np.log10(self.e_min), np.log10(self.e_max), num, dtype=np.float64)
+        energy_arr = np.logspace(np.log10(model.e_min), np.log10(model.e_max), num, dtype=np.float64)
         delta_e = np.diff(np.log(energy_arr))
-
-        phi_0 = model.flux(energy_arr)
-        sigma_array = model.xs(energy_arr, a_mat, b_mat, 9/b_mat)
-        first_term = energy_arr * phi_0 * sigma_array
         
-        dxs_array = np.triu(model.dxs(energy_arr[:, None], energy_arr, a_mat, b_mat, 9/b_mat))
-
+        # Initial flux
+        phisol = model.flux(energy_arr)
+        
+        # Calculate cross-section for each energy
+        sigma_array = np.array([model.xs([e, a_mat, b_mat, 9/b_mat]) for e in energy_arr])
+        
+        # Prepare differential cross-section matrix (upper triangular)
+        dxs_array = np.zeros((len(energy_arr), len(energy_arr)))
+        for i in range(len(energy_arr)):
+            for j in range(i+1, len(energy_arr)):  # Only calculate for j > i
+                # Properly weight the differential cross-section with flux and energy bin width
+                dxs_array[i, j] = model.dxs([energy_arr[i], energy_arr[j], a_mat, b_mat, 9/b_mat]) * model.flux(energy_arr[j])
+        
+        # Apply energy bin widths to the differential cross-section matrix
+        for j in range(1, len(energy_arr)):
+            dxs_array[:, j] *= delta_e[j-1]
+        
+        # Optical depth integration with improved Euler method
+        y = np.linspace(0, 1, 50)  # Increase resolution of optical depth grid
+        deltay = np.diff(y)
+        
+        for i in range(len(deltay)):
+            # Loss term: attenuation due to interactions
+            loss_term = -phisol * sigma_array
+            
+            # Gain term: cascading from higher energies
+            gain_term = np.zeros_like(phisol)
+            for k in range(len(energy_arr)):
+                gain_term += np.sum(dxs_array[:, k:], axis=1)
+            
+            # Update solution using Euler method
+            phisol = phisol + deltay[i] * (loss_term + gain_term)
+        
         return np.interp(energy, energy_arr, phisol)
 
     def events(self, e_min: float, e_max: float, t_obs: float, a_range: list[float], b_range: list[float], n_val: int = 20, n_eig: int = 20) -> None:
@@ -194,7 +221,7 @@ class CascadeEquationSolver():
         enn = np.linspace(10**np.log10(self.e_min),10**np.log10(self.e_max),steps)
         print("No of events: " + str(np.sum(t_obs* self.eigcalc(enn, n_eig, a_val, b_val)*model.eff_area(enn))*delta_e))
 
-    def attenuated_flux(self, e_min: float, e_max: float, n_eig: int, a_val: float, b_val: float) -> None:
+    def plot_attenuated_flux(self, e_min: float, e_max: float, n_eig: int, a_val: float, b_val: float) -> None:
         """
         Calculate the attenuated flux for a given energy range, number of eigenvectors, and parameter values.
 

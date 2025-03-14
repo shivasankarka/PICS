@@ -55,6 +55,16 @@ class Model():
         self.diff_cross_section_eqn = diff_cross_section
         self.dxs = eval(self.diff_cross_section_eqn)
 
+    def set_diff_cross_section_function(self, diff_cross_section: str) -> None:
+        """
+        Set the differential cross section function with user defined function.
+
+        Args:
+            diff_cross_section (str): The user defined function for the differential cross section.
+        """
+        self.diff_cross_section_eqn = diff_cross_section
+        self.dxs = lambda args: self.diff_cross_section_eqn(*args)
+
     def set_cross_section(self, cross_section: str) -> None:
         """
         Set the cross section function with user provided data.
@@ -64,6 +74,16 @@ class Model():
         """
         self.cross_section_eqn = cross_section
         self.xs = eval(self.cross_section_eqn)
+
+    def set_cross_section_function(self, cross_section: str) -> None:
+        """
+        Set the cross section function with user defined function.
+
+        Args:
+            cross_section (str): The user defined function for the cross section.
+        """ 
+        self.cross_section_eqn = cross_section
+        self.xs = lambda args: self.cross_section_eqn(*args)
 
     def set_eff_area_data(self, effective_area: str) -> None:
         """
@@ -103,7 +123,7 @@ class Model():
         else:
             warnings.warn("Flux file not found: {}".format(self.modelpath + "input/flux.csv"))
 
-    def set_flux_func(self, flux: str) -> None:
+    def set_flux_func(self, flux) -> None:
         """
         Set the flux function with user defined function.
 
@@ -111,7 +131,7 @@ class Model():
             flux (str): The user defined function for the flux.
         """
         self.flux_eqn = flux
-        self.flux = lambda E: eval(self.flux_eqn)
+        self.flux = lambda args: self.flux_eqn(args)
 
     def set_np_parameterization(self, m: str, g: str) -> None:
         """
